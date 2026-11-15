@@ -1,0 +1,31 @@
+name: Rust-first tooling policy
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  rust-policy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact checked-out commit
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install pinned rustc
+        run: |
+          rustup toolchain install 1.85.1 --profile minimal
+          rustup default 1.85.1
+      - name: Unit test Rust-only test-policy guard
+        run: |
+          rustc --edition=2021 --test tools/rust_first_guard.rs -o /tmp/rust_first_guard_tests
+          /tmp/rust_first_guard_tests
+      - name: Reject Python script tests and Python-driven CI
+        run: |
+          rustc --edition=2021 tools/rust_first_guard.rs -o /tmp/rust_first_guard
+          /tmp/rust_first_guard .
